@@ -18,18 +18,18 @@ class CityGrid:
         self.distances = {}
 
         self.make_grid()
-        for i in range(self.M):
-            print(self.grid[i])
-        print()
 
         self.place_towers()
         self.towers.sort(key=lambda t: (t[1], t[0]))
-        for i in range(self.M):
-            print(self.grid[i])
-        print()
-        print(self.towers)
+        self.visualization()
 
         self.find_connections()
+        """
+        После визуализации программа выводит:
+            список вышек - вышка и вышки, которых она касается;
+            список путей - вышка и кратчайшие пути до других вышек, если None значит пути нет, либо это и есть сама
+        вышка.
+        """
         for k, v in self.connections.items():
             print(k, ':', v)
         print()
@@ -50,12 +50,6 @@ class CityGrid:
         obstructed_blocks = sample(range(self.M * self.N), need_to_obstruct)
         for block in obstructed_blocks:
             blocks[block] = 1
-
-        # blocks = [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0]
-        # blocks = [2, 2, 1, 1, 2, 2, 'P', 2, 'P', 2, 2, 2, 2, 2, 1, 1, 'P', 1, 2, 2, 1, 1, 1, 'P', 2, 1, 'P', 2, 2, 2]
-        # blocks = [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0]
-        # blocks = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0]
-        print(blocks, '\n')
 
         self.grid = [blocks[i:i+self.N] for i in range(0, len(blocks), self.N)]
 
@@ -164,6 +158,13 @@ class CityGrid:
         return distances
 
     def visualization(self):
+        """
+        Подробную визуализацию я не сделал, ибо не понимаю, что именно нужно (в задании нет никаких подробностей, а сам
+        додумать не могу). Оставил только эту:
+            зелёные клетки - блоки, которые покрываются вышками;
+            жёлтые - вышки;
+            фиолетовые - блоки-препятствия.
+        """
         plt.pcolormesh(self.grid, edgecolors='black')
         plt.show()
 
@@ -171,5 +172,3 @@ class CityGrid:
 if __name__ == '__main__':
     columns, rows, range_num, obstructed_num = 10, 10, 2, 30
     city = CityGrid(columns, rows, range_num, obstructed_num)
-
-    city.visualization()
