@@ -1,4 +1,8 @@
 from random import sample
+import heapq
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 
 class CityGrid:
@@ -11,9 +15,7 @@ class CityGrid:
         self.grid = []
         self.towers = []
         self.connections = {}
-
-        self.visited = []
-        self.results = []
+        self.distances = {}
 
         self.make_grid()
         for i in range(self.M):
@@ -32,25 +34,27 @@ class CityGrid:
             print(k, ':', v)
         print()
 
-        test1 = self.find_path(self.towers[0], self.towers[-1])
-        test2 = self.find_path(self.towers[0], self.towers[1])
-        print(test1, test2)
+        for tower in self.towers:
+            self.dijkstra(tower)
+
+        for k, v in self.distances.items():
+            print(k, ':', v)
 
     def make_grid(self):
         """
         Создаёт сетку N * M, имитирующую город.
         """
-        blocks = ['F' for _ in range(self.M * self.N)]
+        blocks = [0 for _ in range(self.M * self.N)]
 
         need_to_obstruct = round(self.M * self.N * self.obstructed / 100)
         obstructed_blocks = sample(range(self.M * self.N), need_to_obstruct)
         for block in obstructed_blocks:
-            blocks[block] = 'O'
+            blocks[block] = 1
 
-        # blocks = ['F', 'F', 'O', 'O', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'O', 'O', 'F', 'O', 'F', 'F', 'O', 'O', 'O', 'F', 'F', 'O', 'F', 'F', 'F', 'F']
-        # blocks = ['C', 'C', 'O', 'O', 'C', 'C', 'P', 'C', 'P', 'C', 'C', 'C', 'C', 'C', 'O', 'O', 'P', 'O', 'C', 'C', 'O', 'O', 'O', 'P', 'C', 'O', 'P', 'C', 'C', 'C']
-        # blocks = ['F', 'F', 'F', 'F', 'F', 'O', 'F', 'F', 'F', 'O', 'F', 'F', 'F', 'F', 'F', 'O', 'O', 'F', 'F', 'F', 'O', 'O', 'F', 'O', 'F', 'O', 'O', 'F', 'F', 'F']
-        blocks = ['O', 'F', 'F', 'F', 'F', 'O', 'F', 'F', 'F', 'F', 'O', 'O', 'F', 'F', 'F', 'O', 'O', 'F', 'F', 'F', 'F', 'F', 'O', 'F', 'F', 'F', 'O', 'F', 'O', 'F']
+        # blocks = [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0]
+        # blocks = [2, 2, 1, 1, 2, 2, 'P', 2, 'P', 2, 2, 2, 2, 2, 1, 1, 'P', 1, 2, 2, 1, 1, 1, 'P', 2, 1, 'P', 2, 2, 2]
+        # blocks = [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0]
+        # blocks = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0]
         print(blocks, '\n')
 
         self.grid = [blocks[i:i+self.N] for i in range(0, len(blocks), self.N)]
@@ -89,9 +93,9 @@ class CityGrid:
         """
         Поставить на сетку одну вышку с координатами n, m.
         """
-        if self.grid[m][n] == 'F':
+        if self.grid[m][n] == 0:
             self.cover_blocks(n, m)
-            self.grid[m][n] = 'T'
+            self.grid[m][n] = 3
             self.towers.append((n, m))
 
     def cover_blocks(self, n: int, m: int):
@@ -100,8 +104,8 @@ class CityGrid:
         """
         for i in range(max(0, m - self.R), min(self.M, m + self.R + 1)):
             for j in range(max(0, n - self.R), min(self.N, n + self.R + 1)):
-                if self.grid[i][j] != 'O':
-                    self.grid[i][j] = 'C'
+                if self.grid[i][j] != 1:
+                    self.grid[i][j] = 2
 
     def final_check(self):
         """
@@ -120,39 +124,52 @@ class CityGrid:
         for tower in self.towers:
             self.connections[tower] = []
             for other in self.towers:
-                self.connections[tower].append(self.is_connected(tower, other))
+                if self.is_connected(tower, other):
+                    self.connections[tower].append(other)
 
     def is_connected(self, tower: tuple[int, int], other: tuple[int, int]) -> bool:
         """
         Проверяет есть ли связь между вышками tower и other.
         """
-        if abs(tower[0] - other[0]) > self.R * 2 or abs(tower[1] - other[1]) > self.R * 2:
+        if tower == other:
+            return False
+        elif abs(tower[0] - other[0]) > self.R * 2 or abs(tower[1] - other[1]) > self.R * 2:
             return False
         else:
             return True
 
-    def find_path(self, start: tuple[int, int], end: tuple[int, int], res: int = 0) -> int | None:
+    def dijkstra(self, start: tuple[int, int]):
         """
-        Находит оптимальный путь между вышками start и end.
+        Находит оптимальный путь для вышки start в графе graph.
         """
-        self.visited.append(start)
-        for i in range(len(self.connections[start])):
-            if self.towers[i] == end:
-                self.results.append(res)
-                break
-            elif self.towers[i] in self.visited:
-                self.results.append(0)
-            else:
-                res += 1
-                self.find_path(self.towers[i], end, res)
+        distances = {tower: float('infinity') for tower in self.connections}
 
-        self.results = list(filter(lambda x: x > 0, self.results))
-        return min(self.results)
+        distances[start] = 0
+        priority_queue = [(0, start)]
+
+        while priority_queue:
+            current_distance, current_tower = heapq.heappop(priority_queue)
+
+            if current_distance > distances[current_tower]:
+                continue
+
+            for other_tower in self.connections[current_tower]:
+                distance = current_distance + 1
+                if distance < distances[other_tower]:
+                    distances[other_tower] = distance
+                    heapq.heappush(priority_queue, (distance, other_tower))
+
+        distances = dict(map(lambda x: (x[0], None if x[1] == float('infinity') or x[1] == 0 else x[1]), distances.items()))
+        self.distances[start] = distances
+        return distances
 
     def visualization(self):
-        pass
+        plt.pcolormesh(self.grid, edgecolors='black')
+        plt.show()
 
 
 if __name__ == '__main__':
-    columns, rows, range_num, obstructed_num = 5, 6, 1, 30
+    columns, rows, range_num, obstructed_num = 10, 10, 2, 30
     city = CityGrid(columns, rows, range_num, obstructed_num)
+
+    city.visualization()
